@@ -34,12 +34,16 @@
         .user1-text { color: var(--user1-color); }
         .user2-text { color: var(--user2-color); }
 
-        /* الإحصائيات */
+        /* الإحصائيات والمصروفات */
         .yearly-stats-container { background: var(--surface-color); border: 1px solid var(--border-color); padding: 20px; margin-bottom: 30px; }
+        .expenses-input-box { display: flex; gap: 10px; align-items: center; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px; flex-wrap: wrap; }
+        .expenses-input-box label { font-size: 14px; color: var(--text-muted); }
+
         .stats-bar { display: flex; gap: 15px; flex-wrap: wrap; }
         .stat-box { flex: 1; min-width: 200px; background: var(--bg-color); border: 1px solid var(--border-color); padding: 15px; text-align: center; }
         .stat-box .title { color: var(--text-muted); font-size: 13px; }
         .stat-box .value { font-size: 24px; font-weight: bold; margin-top: 8px; color: var(--accent); }
+        .stat-box .value.expense-val { color: var(--danger-color); }
         .stat-box .value.positive { color: var(--success-color); }
         .stat-box .value.negative { color: var(--danger-color); }
 
@@ -73,6 +77,8 @@
         .action-btn { padding: 6px 12px; border: 1px solid var(--border-color); cursor: pointer; font-weight: bold; font-size: 13px; transition: 0.2s; }
         .btn-no { background: rgba(239, 68, 68, 0.15); color: var(--danger-color); border-color: var(--danger-color); }
         .btn-yes { background: rgba(34, 197, 94, 0.15); color: var(--success-color); border-color: var(--success-color); }
+        .btn-delete { background: rgba(239, 68, 68, 0.2); color: #f87171; border-color: #f87171; }
+        .btn-delete:hover { background: var(--danger-color); color: #fff; }
     </style>
 </head>
 <body>
@@ -90,7 +96,7 @@
             </label>
         </div>
 
-        <!-- واجهة الروزنامة -->
+        <!-- واجهة الروزنامة وإحصائيات السنة -->
         <div id="dashboardView">
             <div class="dashboard-header">
                 <h1>لوحة تحكم V8</h1>
@@ -104,9 +110,23 @@
                         <div class="value" id="yearTotalSales">0 د.ج</div>
                     </div>
                     <div class="stat-box">
+                        <div class="title">إجمالي المصروفات</div>
+                        <div class="value expense-val" id="yearTotalExpenses">0 د.ج</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="title">الصافي العام</div>
+                        <div class="value" id="yearNetProfit">0 د.ج</div>
+                    </div>
+                    <div class="stat-box">
                         <div class="title">إجمالي القطع المباعة</div>
                         <div class="value" id="yearTotalItems">0</div>
                     </div>
+                </div>
+
+                <div class="expenses-input-box">
+                    <label for="projectExpenses">إجمالي المصروفات على المشروع (د.ج):</label>
+                    <input type="number" id="projectExpenses" placeholder="أدخل قيمة المصروفات الكلية هنا...">
+                    <button class="add-btn" id="saveExpensesBtn">حفظ المصروفات</button>
                 </div>
             </div>
 
@@ -150,6 +170,7 @@
                         <th>تأكيد الطلب</th>
                         <th>تم الاستلام</th>
                         <th>أضيف بواسطة</th>
+                        <th>حذف</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody"></tbody>
@@ -160,7 +181,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBGC1BJAiNAWHw5gHwmtTUuyh1NEHj3nsc",
@@ -192,14 +213,49 @@
         const currentMonthTitle = document.getElementById('currentMonthTitle');
         const tableBody = document.getElementById('tableBody');
 
-        function initDashboard() {
+        let projectExpenses = parseFloat(localStorage.getItem('v8_project_expenses')) || 0;
+        document.getElementById('projectExpenses').value = projectExpenses > 0 ? projectExpenses : '';
+
+        document.getElementById('saveExpensesBtn').addEventListener('click', () => {
+            const val = parseFloat(document.getElementById('projectExpenses').value);
+            projectExpenses = isNaN(val) ? 0 : val;
+            localStorage.setItem('v8_project_expenses', projectExpenses);
+            updateYearlyDisplay();
+            alert("تم حفظ المصروفات بنجاح!");
+        });
+
+        async function initDashboard() {
             calendarGrid.innerHTML = '';
-            monthsData.forEach(month => {
+            let totalYearSales = 0;
+            let totalYearItems = 0;
+
+            for (const month of monthsData) {
+                const colRef = collection(db, "v8_orders_" + month.id);
+                const snapshot = await getDocs(colRef);
+                
+                let monthSales = 0;
+                let monthItems = 0;
+
+                snapshot.forEach(docSnap => {
+                    const order = docSnap.data();
+                    if (order.confirmed) {
+                        monthSales += order.price;
+                        monthItems++;
+                    }
+                });
+
+                totalYearSales += monthSales;
+                totalYearItems += monthItems;
+
                 const card = document.createElement('div');
                 card.className = 'month-card';
                 card.innerHTML = `
                     <h2>${month.name}</h2>
                     <p style="color:var(--text-muted); margin:2px 0; font-size:12px;">2026</p>
+                    <div class="month-stats">
+                        <div>المبيعات: <strong>${monthSales} د.ج</strong></div>
+                        <div>القطع: <strong>${monthItems}</strong></div>
+                    </div>
                 `;
                 card.onclick = () => {
                     const addedBy = document.querySelector('input[name="addedBy"]:checked');
@@ -210,7 +266,21 @@
                     openMonth(month.id, month.name);
                 };
                 calendarGrid.appendChild(card);
-            });
+            }
+
+            document.getElementById('yearTotalSales').innerText = totalYearSales + " د.ج";
+            document.getElementById('yearTotalExpenses').innerText = projectExpenses + " د.ج";
+            
+            const netProfit = totalYearSales - projectExpenses;
+            const netProfitEl = document.getElementById('yearNetProfit');
+            netProfitEl.innerText = netProfit + " د.ج";
+            netProfitEl.className = "value " + (netProfit >= 0 ? "positive" : "negative");
+
+            document.getElementById('yearTotalItems').innerText = totalYearItems;
+        }
+
+        function updateYearlyDisplay() {
+            initDashboard();
         }
 
         function openMonth(monthId, monthName) {
@@ -260,12 +330,15 @@
                         <td><button class="action-btn ${confirmClass}" onclick="window.updateStatus('${order.id}', 'confirmed', ${order.confirmed})">${confirmText}</button></td>
                         <td><button class="action-btn ${receiveClass}" onclick="window.updateStatus('${order.id}', 'received', ${order.received})">${receiveText}</button></td>
                         <td style="font-weight:bold; color: ${order.addedBy === 'user2' ? 'var(--user2-color)' : 'var(--user1-color)'}">${addedByName}</td>
+                        <td><button class="action-btn btn-delete" onclick="window.deleteOrder('${order.id}')">حذف</button></td>
                     `;
                     tableBody.appendChild(tr);
                 });
 
                 document.getElementById('totalAmount').innerText = totalAmount + " د.ج";
                 document.getElementById('totalOrders').innerText = totalOrders;
+                
+                initDashboard();
             });
         }
 
@@ -273,6 +346,7 @@
             if (currentUnsubscribe) currentUnsubscribe(); 
             monthView.classList.add('hidden');
             dashboardView.classList.remove('hidden');
+            initDashboard();
         };
 
         document.getElementById('addBtn').addEventListener('click', async () => {
@@ -310,6 +384,13 @@
         window.updateStatus = async (id, field, currentState) => {
             const orderRef = doc(db, activeCollectionName, id);
             await updateDoc(orderRef, { [field]: !currentState });
+        };
+
+        window.deleteOrder = async (id) => {
+            if (confirm("هل أنت متأكد من حذف هذه العملية؟")) {
+                const orderRef = doc(db, activeCollectionName, id);
+                await deleteDoc(orderRef);
+            }
         };
 
         initDashboard();
