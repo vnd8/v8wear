@@ -59,7 +59,7 @@
         .expenses-input-box label { font-size: 14px; color: var(--text-muted); flex: 1; min-width: 200px; }
         .expenses-input-box input { flex: 2; min-width: 150px; }
 
-        /* الروزنامة بحركة انميشن ناعمة */
+        /* الروزنامة */
         .calendar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 15px; animation: fadeIn 0.4s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
@@ -81,7 +81,6 @@
         button.add-btn { padding: 12px 20px; background: var(--accent); color: var(--accent-text); border: none; cursor: pointer; font-weight: bold; border-radius: 8px; transition: 0.2s; }
         button.add-btn:hover { background: #e4e4e7; }
 
-        /* الجدول متجاوب للجوال */
         .table-responsive { width: 100%; overflow-x: auto; background: var(--surface-color); border-radius: var(--radius); border: 1px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
         table { width: 100%; border-collapse: collapse; min-width: 700px; }
         th, td { border-bottom: 1px solid var(--border-color); padding: 14px 10px; text-align: center; font-size: 14px; }
@@ -99,7 +98,6 @@
 </head>
 <body>
 
-    <!-- شاشة كلمة المرور -->
     <div id="authScreen">
         <div class="auth-box">
             <h2>🔒 V8wear</h2>
@@ -112,7 +110,6 @@
 
     <div class="container">
         
-        <!-- اختيار المستخدم -->
         <div class="user-selector">
             <label class="user1-text">
                 <input type="radio" name="addedBy" value="user1" class="user1-radio">
@@ -124,7 +121,6 @@
             </label>
         </div>
 
-        <!-- واجهة الروزنامة وإحصائيات السنة -->
         <div id="dashboardView">
             <div class="dashboard-header">
                 <h1>لوحة تحكم V8</h1>
@@ -154,14 +150,13 @@
                 <div class="expenses-input-box">
                     <label for="projectExpenses">إجمالي المصروفات على المشروع (د.ج):</label>
                     <input type="number" id="projectExpenses" placeholder="أدخل قيمة المصروفات الكلية...">
-                    <button class="add-btn" id="saveExpensesBtn">حفظ</button>
+                    <button class="add-btn" id="saveExpensesBtn">حفظ سحابياً</button>
                 </div>
             </div>
 
             <div class="calendar-grid" id="calendarGrid"></div>
         </div>
 
-        <!-- واجهة الشهر والجدول -->
         <div id="monthView" class="hidden">
             <div class="header-bar">
                 <h2 id="currentMonthTitle" style="margin:0;">مبيعات الشهر</h2>
@@ -211,7 +206,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDocs, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBGC1BJAiNAWHw5gHwmtTUuyh1NEHj3nsc",
@@ -225,7 +220,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // نظام كلمة المرور
         const authScreen = document.getElementById('authScreen');
         const passwordInput = document.getElementById('passwordInput');
         const loginBtn = document.getElementById('loginBtn');
@@ -260,6 +254,7 @@
 
         let currentUnsubscribe = null;
         let activeCollectionName = "";
+        let projectExpenses = 0;
 
         const dashboardView = document.getElementById('dashboardView');
         const monthView = document.getElementById('monthView');
@@ -267,18 +262,34 @@
         const currentMonthTitle = document.getElementById('currentMonthTitle');
         const tableBody = document.getElementById('tableBody');
 
-        let projectExpenses = parseFloat(localStorage.getItem('v8_project_expenses')) || 0;
-        document.getElementById('projectExpenses').value = projectExpenses > 0 ? projectExpenses : '';
+        // جلب المصروفات سحابياً من Firebase
+        async function fetchExpenses() {
+            try {
+                const expDoc = await getDoc(doc(db, "v8_settings", "expenses"));
+                if (expDoc.exists()) {
+                    projectExpenses = expDoc.data().amount || 0;
+                    document.getElementById('projectExpenses').value = projectExpenses > 0 ? projectExpenses : '';
+                }
+            } catch (e) {
+                console.log("Error fetching expenses", e);
+            }
+        }
 
-        document.getElementById('saveExpensesBtn').addEventListener('click', () => {
+        document.getElementById('saveExpensesBtn').addEventListener('click', async () => {
             const val = parseFloat(document.getElementById('projectExpenses').value);
             projectExpenses = isNaN(val) ? 0 : val;
-            localStorage.setItem('v8_project_expenses', projectExpenses);
-            updateYearlyDisplay();
-            alert("تم حفظ المصروفات بنجاح!");
+            
+            try {
+                await setDoc(doc(db, "v8_settings", "expenses"), { amount: projectExpenses });
+                updateYearlyDisplay();
+                alert("تم حفظ المصروفات سحابياً بنجاح لتظهر عند الجميع!");
+            } catch (e) {
+                alert("حدث خطأ أثناء الحفظ، تأكد من الاتصال.");
+            }
         });
 
         async function initDashboard() {
+            await fetchExpenses();
             calendarGrid.innerHTML = '';
             let totalYearSales = 0;
             let totalYearItems = 0;
