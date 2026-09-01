@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم V8</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        
+        <!-- اختيار المستخدم -->
+        <div class="user-selector">
+            <label class="user1-text">
+                <input type="radio" name="addedBy" value="user1" class="user1-radio">
+                anes
+            </label>
+            <label class="user2-text">
+                <input type="radio" name="addedBy" value="user2" class="user2-radio">
+                momo
+            </label>
+        </div>
+
+        <!-- الواجهة الأولى: الروزنامة وإحصائيات السنة -->
+        <div id="dashboardView">
+            <div class="dashboard-header">
+                <h1>لوحة تحكم V8</h1>
+                <p class="subtitle">اختر الشهر لإدارة المبيعات</p>
+            </div>
+
+            <!-- إحصائيات السنة الكاملة والمصروفات -->
+            <div class="yearly-stats-container">
+                <div class="stats-bar">
+                    <div class="stat-box">
+                        <div class="title">إجمالي المبيعات (السنة)</div>
+                        <div class="value" id="yearTotalSales">0</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="title">إجمالي المصروفات</div>
+                        <div class="value expense-val" id="yearTotalExpenses">0</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="title">الصافي العام</div>
+                        <div class="value" id="yearNetProfit">0</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="title">إجمالي القطع المباعة</div>
+                        <div class="value" id="yearTotalItems">0</div>
+                    </div>
+                </div>
+
+                <div class="expenses-input-box">
+                    <label for="projectExpenses">إجمالي المصروفات على المشروع (د.ج):</label>
+                    <input type="number" id="projectExpenses" placeholder="أدخل قيمة المصروفات الكلية هنا...">
+                    <button class="add-btn" id="saveExpensesBtn">حفظ المصروفات</button>
+                </div>
+            </div>
+
+            <div class="calendar-grid" id="calendarGrid">
+                <!-- سيتم توليد الأشهر هنا برمجياً -->
+            </div>
+        </div>
+
+        <!-- الواجهة الثانية: الجدول والإحصاءات الشهرية -->
+        <div id="monthView" class="hidden">
+            <div class="header-bar">
+                <h2 id="currentMonthTitle">مبيعات الشهر</h2>
+                <button class="back-btn" onclick="window.goBack()">العودة للروزنامة ➔</button>
+            </div>
+
+            <div class="stats-bar">
+                <div class="stat-box">
+                    <div class="title">المبيعات المؤكدة (الشهر)</div>
+                    <div class="value" id="totalAmount">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="title">الطلبات المؤكدة</div>
+                    <div class="value" id="totalOrders">0</div>
+                </div>
+            </div>
+
+            <div class="input-section">
+                <input type="text" id="name" placeholder="اسم ولقب المشتري" autocomplete="off">
+                <input type="tel" id="phone" placeholder="رقم الهاتف" autocomplete="off">
+                <input type="text" id="itemName" placeholder="نوع الطلب" autocomplete="off">
+                <input type="number" id="price" placeholder="المبلغ">
+                <button class="add-btn" id="addBtn">إضافة الطلب</button>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>الاسم</th>
+                        <th>الهاتف</th>
+                        <th>الطلب</th>
+                        <th>التاريخ</th>
+                        <th>المبلغ</th>
+                        <th>تأكيد الطلب</th>
+                        <th>تم الاستلام</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- سيتم إضافة الطلبات هنا -->
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
