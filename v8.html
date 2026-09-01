@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم V8</title>
+    <style>
+        :root {
+            --bg-color: #050505;
+            --surface-color: #121212;
+            --border-color: #2a2a2a;
+            --text-main: #ffffff;
+            --text-muted: #888888;
+            --accent: #ffffff;
+            --accent-text: #000000;
+            --user1-color: #3b82f6; 
+            --user2-color: #10b981; 
+            --danger-color: #ef4444;
+            --success-color: #22c55e;
+        }
+        
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg-color); color: var(--text-main); margin: 0; padding: 20px; }
+        .container { max-width: 1100px; margin: auto; }
+        h1, h2, h3 { font-weight: normal; margin-top: 0; }
+        .subtitle { color: var(--text-muted); }
+        
+        .dashboard-header { text-align: center; margin-bottom: 25px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px; }
+
+        /* اختيار المستخدم */
+        .user-selector { display: flex; gap: 50px; margin-bottom: 30px; justify-content: center; background: var(--surface-color); padding: 20px; border: 2px dashed var(--border-color); border-radius: 8px; }
+        .user-selector label { cursor: pointer; display: flex; align-items: center; gap: 15px; font-weight: bold; font-size: 28px; text-transform: uppercase; }
+        .user1-radio { accent-color: var(--user1-color); width: 30px; height: 30px; cursor: pointer; }
+        .user2-radio { accent-color: var(--user2-color); width: 30px; height: 30px; cursor: pointer; }
+        .user1-text { color: var(--user1-color); }
+        .user2-text { color: var(--user2-color); }
+
+        /* الإحصائيات */
+        .yearly-stats-container { background: var(--surface-color); border: 1px solid var(--border-color); padding: 20px; margin-bottom: 30px; }
+        .stats-bar { display: flex; gap: 15px; flex-wrap: wrap; }
+        .stat-box { flex: 1; min-width: 200px; background: var(--bg-color); border: 1px solid var(--border-color); padding: 15px; text-align: center; }
+        .stat-box .title { color: var(--text-muted); font-size: 13px; }
+        .stat-box .value { font-size: 24px; font-weight: bold; margin-top: 8px; color: var(--accent); }
+        .stat-box .value.positive { color: var(--success-color); }
+        .stat-box .value.negative { color: var(--danger-color); }
+
+        /* الروزنامة */
+        .calendar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; }
+        .month-card { background: var(--surface-color); border: 1px solid var(--border-color); padding: 20px; text-align: center; cursor: pointer; transition: 0.2s; }
+        .month-card:hover { border-color: var(--accent); background: #1a1a1a; }
+        .month-card h2 { font-size: 22px; margin-bottom: 5px; }
+        .month-card .month-stats { font-size: 13px; color: var(--text-muted); margin-top: 8px; border-top: 1px solid var(--border-color); padding-top: 5px; }
+
+        .hidden { display: none !important; }
+
+        .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .back-btn { background: transparent; color: var(--text-main); border: 1px solid var(--border-color); padding: 10px 20px; cursor: pointer; transition: 0.2s; }
+        .back-btn:hover { border-color: var(--accent); }
+
+        .input-section { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        input { flex: 1; min-width: 140px; padding: 12px; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); outline: none; font-size: 14px; }
+        input:focus { border-color: var(--accent); }
+
+        button.add-btn { padding: 10px 20px; background: var(--accent); color: var(--accent-text); border: none; cursor: pointer; font-weight: bold; }
+        button.add-btn:hover { background: #e0e0e0; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border-bottom: 1px solid var(--border-color); padding: 15px 10px; text-align: center; font-size: 14px; }
+        th { color: var(--text-muted); font-weight: normal; background: var(--surface-color); }
+
+        tr.user1-row { border-right: 4px solid var(--user1-color); }
+        tr.user2-row { border-right: 4px solid var(--user2-color); }
+
+        .action-btn { padding: 6px 12px; border: 1px solid var(--border-color); cursor: pointer; font-weight: bold; font-size: 13px; transition: 0.2s; }
+        .btn-no { background: rgba(239, 68, 68, 0.15); color: var(--danger-color); border-color: var(--danger-color); }
+        .btn-yes { background: rgba(34, 197, 94, 0.15); color: var(--success-color); border-color: var(--success-color); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        
+        <!-- اختيار المستخدم -->
+        <div class="user-selector">
+            <label class="user1-text">
+                <input type="radio" name="addedBy" value="user1" class="user1-radio">
+                anes
+            </label>
+            <label class="user2-text">
+                <input type="radio" name="addedBy" value="user2" class="user2-radio">
+                momo
+            </label>
+        </div>
+
+        <!-- واجهة الروزنامة -->
+        <div id="dashboardView">
+            <div class="dashboard-header">
+                <h1>لوحة تحكم V8</h1>
+                <p class="subtitle">اختر الشهر لإدارة المبيعات (متزامن لحظياً)</p>
+            </div>
+
+            <div class="yearly-stats-container">
+                <div class="stats-bar">
+                    <div class="stat-box">
+                        <div class="title">إجمالي المبيعات (السنة)</div>
+                        <div class="value" id="yearTotalSales">0 د.ج</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="title">إجمالي القطع المباعة</div>
+                        <div class="value" id="yearTotalItems">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+
+        <!-- واجهة الشهر والجدول -->
+        <div id="monthView" class="hidden">
+            <div class="header-bar">
+                <h2 id="currentMonthTitle">مبيعات الشهر</h2>
+                <button class="back-btn" onclick="window.goBack()">العودة للروزنامة ➔</button>
+            </div>
+
+            <div class="stats-bar" style="margin-bottom: 20px;">
+                <div class="stat-box">
+                    <div class="title">المبيعات المؤكدة (الشهر)</div>
+                    <div class="value" id="totalAmount">0 د.ج</div>
+                </div>
+                <div class="stat-box">
+                    <div class="title">الطلبات المؤكدة</div>
+                    <div class="value" id="totalOrders">0</div>
+                </div>
+            </div>
+
+            <div class="input-section">
+                <input type="text" id="name" placeholder="اسم ولقب المشتري" autocomplete="off">
+                <input type="tel" id="phone" placeholder="رقم الهاتف" autocomplete="off">
+                <input type="text" id="itemName" placeholder="نوع الطلب" autocomplete="off">
+                <input type="number" id="price" placeholder="المبلغ">
+                <button class="add-btn" id="addBtn">إضافة الطلب</button>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>الاسم</th>
+                        <th>الهاتف</th>
+                        <th>الطلب</th>
+                        <th>التاريخ</th>
+                        <th>المبلغ</th>
+                        <th>تأكيد الطلب</th>
+                        <th>تم الاستلام</th>
+                        <th>أضيف بواسطة</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBGC1BJAiNAWHw5gHwmtTUuyh1NEHj3nsc",
+            authDomain: "v8wear.firebaseapp.com",
+            projectId: "v8wear",
+            storageBucket: "v8wear.firebasestorage.app",
+            messagingSenderId: "843271931685",
+            appId: "1:843271931685:web:6700c96d78029bf98abccc"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const monthsData = [
+            { id: "01-2026", name: "جانفي" }, { id: "02-2026", name: "فيفري" },
+            { id: "03-2026", name: "مارس" }, { id: "04-2026", name: "أفريل" },
+            { id: "05-2026", name: "ماي" }, { id: "06-2026", name: "جوان" },
+            { id: "07-2026", name: "جويلية" }, { id: "08-2026", name: "أوت" },
+            { id: "09-2026", name: "سبتمبر" }, { id: "10-2026", name: "أكتوبر" },
+            { id: "11-2026", name: "نوفمبر" }, { id: "12-2026", name: "ديسمبر" }
+        ];
+
+        let currentUnsubscribe = null;
+        let activeCollectionName = "";
+
+        const dashboardView = document.getElementById('dashboardView');
+        const monthView = document.getElementById('monthView');
+        const calendarGrid = document.getElementById('calendarGrid');
+        const currentMonthTitle = document.getElementById('currentMonthTitle');
+        const tableBody = document.getElementById('tableBody');
+
+        function initDashboard() {
+            calendarGrid.innerHTML = '';
+            monthsData.forEach(month => {
+                const card = document.createElement('div');
+                card.className = 'month-card';
+                card.innerHTML = `
+                    <h2>${month.name}</h2>
+                    <p style="color:var(--text-muted); margin:2px 0; font-size:12px;">2026</p>
+                `;
+                card.onclick = () => {
+                    const addedBy = document.querySelector('input[name="addedBy"]:checked');
+                    if (!addedBy) {
+                        alert("يرجى تحديد هويتك (anes أو momo) أولاً قبل الدخول للشهر!");
+                        return;
+                    }
+                    openMonth(month.id, month.name);
+                };
+                calendarGrid.appendChild(card);
+            });
+        }
+
+        function openMonth(monthId, monthName) {
+            dashboardView.classList.add('hidden');
+            monthView.classList.remove('hidden');
+            currentMonthTitle.innerText = `مبيعات شهر ${monthName}`;
+            
+            activeCollectionName = "v8_orders_" + monthId;
+            const ordersCollection = collection(db, activeCollectionName);
+
+            if (currentUnsubscribe) currentUnsubscribe();
+
+            currentUnsubscribe = onSnapshot(ordersCollection, (snapshot) => {
+                tableBody.innerHTML = '';
+                let totalAmount = 0;
+                let totalOrders = 0;
+                let ordersArray = [];
+
+                snapshot.forEach((docSnap) => {
+                    ordersArray.push({ id: docSnap.id, ...docSnap.data() });
+                });
+
+                ordersArray.sort((a, b) => a.timestamp - b.timestamp);
+
+                ordersArray.forEach((order) => {
+                    if (order.confirmed) {
+                        totalAmount += order.price;
+                        totalOrders++;
+                    }
+
+                    const confirmClass = order.confirmed ? 'btn-yes' : 'btn-no';
+                    const confirmText = order.confirmed ? '✔ مؤكد' : '✖ غير مؤكد';
+                    const receiveClass = order.received ? 'btn-yes' : 'btn-no';
+                    const receiveText = order.received ? '✔ مستلم' : '✖ لم يستلم';
+                    
+                    const rowClass = order.addedBy === 'user2' ? 'user2-row' : 'user1-row';
+                    const addedByName = order.addedBy === 'user2' ? 'momo' : 'anes';
+
+                    const tr = document.createElement('tr');
+                    tr.className = rowClass;
+                    tr.innerHTML = `
+                        <td>${order.name}</td>
+                        <td>${order.phone}</td>
+                        <td>${order.item || '-'}</td>
+                        <td>${order.date}</td>
+                        <td>${order.price} د.ج</td>
+                        <td><button class="action-btn ${confirmClass}" onclick="window.updateStatus('${order.id}', 'confirmed', ${order.confirmed})">${confirmText}</button></td>
+                        <td><button class="action-btn ${receiveClass}" onclick="window.updateStatus('${order.id}', 'received', ${order.received})">${receiveText}</button></td>
+                        <td style="font-weight:bold; color: ${order.addedBy === 'user2' ? 'var(--user2-color)' : 'var(--user1-color)'}">${addedByName}</td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+
+                document.getElementById('totalAmount').innerText = totalAmount + " د.ج";
+                document.getElementById('totalOrders').innerText = totalOrders;
+            });
+        }
+
+        window.goBack = () => {
+            if (currentUnsubscribe) currentUnsubscribe(); 
+            monthView.classList.add('hidden');
+            dashboardView.classList.remove('hidden');
+        };
+
+        document.getElementById('addBtn').addEventListener('click', async () => {
+            const addedByInput = document.querySelector('input[name="addedBy"]:checked');
+            if (!addedByInput) {
+                alert("يرجى تحديد هويتك (anes أو momo) أولاً!");
+                return;
+            }
+
+            const name = document.getElementById('name').value;
+            const phone = document.getElementById('phone').value;
+            const itemName = document.getElementById('itemName').value;
+            const price = parseFloat(document.getElementById('price').value);
+            const addedBy = addedByInput.value;
+
+            if (!name || !phone || !itemName || isNaN(price)) {
+                alert("يرجى تعبئة جميع الخانات بشكل صحيح.");
+                return;
+            }
+
+            const date = new Date().toLocaleDateString('en-GB');
+            const ordersCollection = collection(db, activeCollectionName);
+
+            await addDoc(ordersCollection, {
+                name, phone, item: itemName, price, date, addedBy,
+                confirmed: false, received: false, timestamp: Date.now()
+            });
+
+            document.getElementById('name').value = '';
+            document.getElementById('phone').value = '';
+            document.getElementById('itemName').value = '';
+            document.getElementById('price').value = '';
+        });
+
+        window.updateStatus = async (id, field, currentState) => {
+            const orderRef = doc(db, activeCollectionName, id);
+            await updateDoc(orderRef, { [field]: !currentState });
+        };
+
+        initDashboard();
+    </script>
+</body>
+</html>
